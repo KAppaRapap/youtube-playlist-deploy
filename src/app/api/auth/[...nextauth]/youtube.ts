@@ -1,9 +1,11 @@
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 
+const NEXTAUTH_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
 export const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID!;
 export const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET!;
-export const YOUTUBE_REDIRECT_URI = new URL('/api/auth/callback/youtube', process.env.NEXTAUTH_URL).toString();
+export const YOUTUBE_REDIRECT_URI = new URL('/api/auth/callback/youtube', NEXTAUTH_URL).toString();
 
 const youtube = google.youtube('v3');
 
