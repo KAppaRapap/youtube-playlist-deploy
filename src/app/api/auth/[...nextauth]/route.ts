@@ -28,6 +28,12 @@ declare module "next-auth/jwt" {
   }
 }
 
+const baseUrl = process.env.VERCEL_URL 
+  ? `https://${process.env.VERCEL_URL}`
+  : process.env.NEXTAUTH_URL 
+    ? process.env.NEXTAUTH_URL
+    : 'http://localhost:3000';
+
 const YouTubeProvider = {
   id: "youtube",
   name: "YouTube",
@@ -45,7 +51,7 @@ const YouTubeProvider = {
   token: "https://oauth2.googleapis.com/token",
   clientId: process.env.YOUTUBE_CLIENT_ID,
   clientSecret: process.env.YOUTUBE_CLIENT_SECRET,
-  redirectUri: new URL('/api/auth/callback/youtube', process.env.NEXTAUTH_URL).toString(),
+  redirectUri: `${baseUrl}/api/auth/callback/youtube`,
   profile(profile: { sub: string; name: string; email: string; picture: string }) {
     return {
       id: profile.sub,
