@@ -25,17 +25,14 @@ export async function createYoutubePlaylist(accessToken: string, playlistName: s
     oauth2Client.setCredentials({ access_token: accessToken });
 
     const response = await youtube.playlists.insert({
-
-
-
-
-
       auth: oauth2Client,
       part: ['snippet', 'status'],
       requestBody: {
         snippet: {
           title: playlistName,
-          description: description,
+          description: description
+        },
+        status: {
           privacyStatus: 'private'
         }
       }
@@ -44,7 +41,7 @@ export async function createYoutubePlaylist(accessToken: string, playlistName: s
     if (!response?.data) {
       throw new Error('No data received from YouTube API');
     }
-    return response.data as any;
+    return response.data;
   } catch (error) {
     console.error('Error creating YouTube playlist:', error);
     throw error;
@@ -99,18 +96,12 @@ export async function searchYoutubeVideos(accessToken: string, query: string, ma
     });
 
     if (!response?.data?.items) {
-      throw new Error('Invalid response from YouTube API');
+      throw new Error('No videos found');
     }
 
     return response.data.items;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error searching YouTube videos:', error);
-    const errorMessage = error.message || 'Failed to search videos';
-    const statusCode = error.code || 500;
-    throw new Error(JSON.stringify({
-      message: errorMessage,
-      status: statusCode,
-      details: error.response?.data?.error?.message
-    }));
+    throw error;
   }
 }

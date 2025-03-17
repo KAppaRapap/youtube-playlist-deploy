@@ -1,6 +1,7 @@
 import NextAuth, { DefaultSession, Account, User, Session } from "next-auth";
 import { JWT } from "next-auth/jwt";
 import { youtubeScopes } from "./youtube";
+import { AuthOptions } from "next-auth";
 
 declare module "next-auth" {
   interface Session extends DefaultSession {
@@ -55,10 +56,7 @@ const YouTubeProvider = {
   }
 };
 
-const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID!;
-const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET!;
-
-export const authOptions = {
+const authOptions: AuthOptions = {
   providers: [
     {
       ...YouTubeProvider,
@@ -100,40 +98,30 @@ export const authOptions = {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           body: new URLSearchParams({
-            client_id: YOUTUBE_CLIENT_ID,
-            client_secret: YOUTUBE_CLIENT_SECRET,
+            client_id: process.env.YOUTUBE_CLIENT_ID!,
+            client_secret: process.env.YOUTUBE_CLIENT_SECRET!,
             grant_type: 'refresh_token',
-            refresh_token: token.refreshToken
-          })
-        }).then(res => res.json());
+            refresh_token: token.refreshToken,
+          }).toString(),
+        }).then(r => r.json());
 
-        if (!tokens.access_token) {
-          throw new Error(tokens.error_description || 'Failed to refresh token');
-        }
-
-        const newToken: JWT = {
-          ...token,
-          accessToken: tokens.access_token,
-          accessTokenExpires: Date.now() + tokens.expires_in * 1000,
-          refreshToken: tokens.refresh_token ?? token.refreshToken
-        };
-        return newToken;
-      } catch (error) {
-        console.error('Error refreshing access token', error);
         return {
           ...token,
-          error: error instanceof Error ? error.message : 'RefreshAccessTokenError'
+          accessToken: tokens.access_token,
+          accessTokenExpires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+        };
+      } catch (error) {
+        return {
+          ...token,
+          error: 'RefreshAccessTokenError',
         };
       }
     },
     async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
-      if (token.error) {
-        throw new Error(token.error);
+      if (token.user) {
+        session.user = token.user;
       }
       session.accessToken = token.accessToken;
-      if (token.user && session.user) {
-        session.user.id = token.user.id;
-      }
       return session;
     },
   },

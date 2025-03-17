@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
 interface VideoItem {
   id: { videoId: string };
@@ -15,13 +15,19 @@ interface VideoItem {
   };
 }
 
-export default function PlaylistResults() {
+function PlaylistResultsContent() {
   const searchParams = useSearchParams();
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!searchParams) {
+      setError('No search parameters found');
+      setIsLoading(false);
+      return;
+    }
+
     const videoIdsParam = searchParams.get('videos');
     setIsLoading(true);
     setError(null);
@@ -102,35 +108,65 @@ export default function PlaylistResults() {
             href={combinedPlaylistUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full p-3 bg-green-500 text-white text-center rounded-lg hover:bg-green-600 transition-colors"
+            className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
           >
-            Open Combined Playlist
+            Watch All Videos
           </a>
         </div>
       )}
-      <div className="grid gap-4 mt-6">
-        {videos.map((video) => {
-          const playlistUrl = generatePlaylistUrl([video.id.videoId]);
-          return (
-            <div key={video.id.videoId} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-              <h3 className="font-semibold text-lg mb-2">{video.snippet.title}</h3>
-              <img
-                src={video.snippet.thumbnails.medium?.url || video.snippet.thumbnails.default.url}
-                alt={video.snippet.title}
-                className="w-full rounded-lg mb-4"
-              />
-              <a
-                href={playlistUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-2 bg-blue-500 text-white text-center rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Open in YouTube
-              </a>
+      <div className="space-y-6">
+        {videos.map((video, index) => (
+          <div key={video.id.videoId} className="border rounded-lg p-4">
+            <h2 className="text-lg font-semibold mb-4">{video.snippet.title}</h2>
+            <div className="aspect-video mb-4">
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${video.id.videoId}`}
+                title={video.snippet.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
             </div>
-          );
-        })}
+            <p className="text-gray-600 mb-4">{video.snippet.description}</p>
+            <a
+              href={`https://www.youtube.com/watch?v=${video.id.videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+            >
+              Watch on YouTube
+            </a>
+          </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="max-w-2xl mx-auto p-6 text-center">
+      <div className="animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto mb-6"></div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="border rounded-lg p-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-32 bg-gray-200 rounded mb-4"></div>
+              <div className="h-10 bg-gray-200 rounded w-full"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function PlaylistResults() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PlaylistResultsContent />
+    </Suspense>
   );
 }
