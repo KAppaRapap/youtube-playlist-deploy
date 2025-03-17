@@ -34,7 +34,7 @@ export default function RootLayout({
             <footer className="bg-gray-800 text-white py-6 mt-8">
               <div className="container mx-auto px-4 text-center">
                 <p className="text-gray-400">
-                  This is a playlist generator that helps you discover YouTube playlists based on your preferences.
+                  Made by <a href="https://www.instagram.com/dinis.ivanets/?hl=en" target="_blank" rel="noopener noreferrer">Dinis Ivanets</a>
                 </p>
               </div>
             </footer>
