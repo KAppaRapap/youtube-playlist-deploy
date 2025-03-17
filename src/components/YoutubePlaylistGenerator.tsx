@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import React, { useState } from 'react';
 
 interface Question {
@@ -40,11 +41,17 @@ const questions: Question[] = [
 ];
 
 export default function YoutubePlaylistGenerator() {
+  const { data: session } = useSession();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [playlists, setPlaylists] = useState<VideoItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [playlistCreated, setPlaylistCreated] = useState<{
+    name: string;
+    url: string;
+  } | null>(null);
 
   const handleAnswer = async (questionId: string, answer: string) => {
     const newAnswers = { ...answers, [questionId]: answer };
@@ -78,18 +85,55 @@ export default function YoutubePlaylistGenerator() {
     }
   };
 
+  const createPlaylist = async (playlist: VideoItem) => {
+    if (!session?.accessToken || !session?.user?.id) {
+      setError('Please log in to create a playlist');
+      return;
+    }
+
+    setCreatingPlaylist(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/create-playlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessToken: session.accessToken,
+          userId: session.user.id,
+          playlistName: playlist.snippet.title,
+          tracks: [{ uri: playlist.id.videoId }]
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create playlist');
+      }
+
+      setPlaylistCreated({
+        name: data.name,
+        url: data.url
+      });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreatingPlaylist(false);
+    }
+  };
+
   const resetQuestions = () => {
     setCurrentQuestionIndex(0);
     setAnswers({});
     setPlaylists([]);
     setError(null);
+    setPlaylistCreated(null);
   };
 
   const currentQuestion = questions[currentQuestionIndex];
-
-  const getPlaylistUrl = (playlistId: string) => {
-    return `https://www.youtube.com/playlist?list=${playlistId}`;
-  };
 
   return (
     <div className="max-w-4xl mx-auto p-4">
@@ -102,6 +146,30 @@ export default function YoutubePlaylistGenerator() {
           >
             Try Again
           </button>
+        </div>
+      ) : playlistCreated ? (
+        <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
+          <p>Playlist "{playlistCreated.name}" was created successfully!</p>
+          <div className="mt-4 flex gap-4">
+            <a
+              href={playlistCreated.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors inline-flex items-center"
+            >
+              Open Playlist
+              <svg className="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+              </svg>
+            </a>
+            <button
+              onClick={resetQuestions}
+              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+            >
+              New Search
+            </button>
+          </div>
         </div>
       ) : playlists.length > 0 ? (
         <div>
@@ -134,18 +202,33 @@ export default function YoutubePlaylistGenerator() {
                   <p className="text-gray-600 text-sm mb-4 line-clamp-3 min-h-[4.5rem]">
                     {playlist.snippet.description}
                   </p>
-                  <a
-                    href={getPlaylistUrl(playlist.id.videoId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors inline-flex items-center"
-                  >
-                    <span>Open in YouTube</span>
-                    <svg className="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                      <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                    </svg>
-                  </a>
+                  <div className="flex gap-2">
+                    <a
+                      href={`https://www.youtube.com/playlist?list=${playlist.id.videoId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors inline-flex items-center"
+                    >
+                      <span>Open in YouTube</span>
+                      <svg className="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                      </svg>
+                    </a>
+                    {session && (
+                      <button
+                        onClick={() => createPlaylist(playlist)}
+                        disabled={creatingPlaylist}
+                        className={`px-4 py-2 rounded transition-colors ${
+                          creatingPlaylist
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-green-600 hover:bg-green-700'
+                        } text-white`}
+                      >
+                        {creatingPlaylist ? 'Creating...' : 'Save to My Playlists'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
